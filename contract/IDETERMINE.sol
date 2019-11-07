@@ -1,12 +1,12 @@
 pragma solidity ^0.5.5;
 interface IDETERMINE {
     function isOwner(address add) external returns(bool);
-    function add_intertal_affair(bytes calldata code,uint256 value,address destination,uint8 which)external returns(bool success);
+    function add_intertal_affair(bytes calldata code,uint8 which)external returns(bool success);
+    function add_transfer_affair(uint256 value,address destination)external returns(bool success);
     function confirmTransaction(uint256 transactionId,int which)external;
     function revokeConfirmation(uint256 transactionId,int which)external;
     function isConfirmed(uint256 transactionId,int which)external view returns (bool);
     function revoke(uint transactionId) external;
-    //external
     function change_count(uint256 index)external  returns(bool);
     function change_exter_require(uint8 _required,uint256 id,uint256 value)external returns(uint8);
     function addOwner(address owner) external;
