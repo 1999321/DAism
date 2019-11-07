@@ -78,16 +78,13 @@ contract Determine is IDETERMINE{
     {
         require(int(_owners.length)<=max_owners_count);
         address zero;
-       
-        for (uint i=0; i<Owners.length; i++) {
-            require(!isOwner[Owners[i]] && Owners[i] != zero);
+        for (uint i=0; i<_owners.length; i++) {
+            require(!isOwner[_owners[i]] && _owners[i] != zero);
             isOwner[_owners[i]] = true;
         }
         Owners = _owners;
         required = _required;
         inter_businesses[0].names = "transfer";
-        inter_businesses_count += 1;
-        //change_require_code = bytes4(keccak256("change_require(uint8)"));
         inter_businesses[1].names = "change_require(uint8)";
         inter_businesses[1].forth_code = bytes4(keccak256("change_require(uint8)"));
         inter_businesses[1].required = uint8(Owners.length);
@@ -96,20 +93,21 @@ contract Determine is IDETERMINE{
         inter_businesses[2].required = required;
     }
     
+    
+    
     function the_max(uint8 value1,uint8 value2) public view returns(uint8 max_value){
         if(value1>value2)
         max_value = value1;
         max_value = value2;
     }
-    function find_require(uint256 value)public view returns(uint8 required_){
+    function find_require(uint256 _value)public view returns(uint8 required_){
         
         for(uint8 i=0;i<single_affair_count;i++){
-            if(value < single_affair[i].value_high && value > single_affair[i].value_low)
+            if(_value < single_affair[i].value_high && _value > single_affair[i].value_low)
             required_ = single_affair[i].required;
         }
         if(required_ == 0)
         required_ = required;
-        //required = max(required2,required1);
     }
     function find_require1(uint256 value)public view returns(uint8 required_){
         for(uint8 i=0;i<sum_affair_count;i++){
@@ -129,38 +127,46 @@ contract Determine is IDETERMINE{
             today_spend += value;
         sum_value = today_spend;
     }
-    function isthe_code(bytes memory code,uint8 which)public view returns(bool ){
+    function isthe_code(bytes memory _code,uint8 which)public view returns(bool ){
         for(uint i=0;i<4;i++)
-        if(code[i] != inter_businesses[which].forth_code[i])
+        if(_code[i] != inter_businesses[which].forth_code[i])
         return false;
         return true;
     }
-    function add_intertal_affair(bytes memory code,uint256 value,address destination,uint8 which)public onlyowners(msg.sender)returns(bool success)
+    function add_intertal_affair(bytes memory _code,uint8 which)public onlyowners(msg.sender)returns(bool success)
+    {
+        address zero;
+        require(which >= 0 );
+        uint8 required_affair;
+        require(inter_businesses[which].forth_code.length != 0);
+        require(isthe_code(_code,which));
+        required_affair = inter_businesses[which].required;
+        if(required_affair == 0)
+        required_affair = required;
+        affairs[affaircount] = affair({
+            code:_code,
+            caller:msg.sender,
+            status:0,
+            value:0,
+            destination:zero,
+            which:which,
+            required:required_affair
+        });
+        affaircount += 1;
+        success = true;
+    }
+    function add_transfer_affair(uint256 value,address destination)public onlyowners(msg.sender)returns(bool success)
     {
         require(value+affaircount>=affaircount);
         address zero;
         require(destination != zero);
         uint8 required_affair;
-        if(which == 0){
-             //require(code.length == 0);
              required_affair = the_max(find_require(value),find_require1(find_sum_value(value)));
-        }
-        else{
-            require(value == 0);
-            require(isthe_code(code,which));
-            required_affair = inter_businesses[which].required;
-        }
         if(required_affair == 0)
         required_affair = required;
-        affairs[affaircount] = affair({
-            code:code,
-            caller:msg.sender,
-            status:0,
-            value:value,
-            destination:destination,
-            which:which,
-            required:required_affair
-        });
+        affairs[affaircount].value = value;
+        affairs[affaircount].destination = destination;
+        affaircount += 1;
         success = true;
     }
     function confirmTransaction(uint256 transactionId,int which)public onlyowners(msg.sender)
@@ -221,34 +227,48 @@ contract Determine is IDETERMINE{
     internal
     returns(bool success)
     {
-       if(which == 0)
-       success = isConfirmed(transactionId,0);
+       if(which == 0){
+           success = isConfirmed(transactionId,0);
        if(success){
            if(affairs[transactionId].which != 0)
-           ex_function(affairs[transactionId].code,affairs[transactionId].destination,0);
+           address(this).call(affairs[transactionId].code);
+           //ex_function(affairs[transactionId].code,address(this),0);
            else
            require(IDATA_MOV(movitation_address)._transfer(affairs[transactionId].value,affairs[transactionId].destination));
            affairs[transactionId].status = 2;
        }
+       }
+       
+       else{
        success = isConfirmed(transactionId,1);
        if(success){
            require(IDATA_MOV(movitation_address).ex_affair(transactionId));
            status[transactionId] =2;
        }
+       }
     }
-    function ex_function(bytes memory code,address destination,uint256 value) internal returns(uint answer){
+    function test()public {
+        string memory sk = "set_movitation_address(address)";
+        IDETERMINE(address(this)).change_inter_business(8,sk,33);
+    }
+    function test1(bytes memory code)public returns(bool){
+         address(this).call(code);
+       //return address(this).call(bytes4(keccak256("change_inter_business(uint8,string,uint8)")),num,ooo,id);
+    }
+    function ex_function(bytes memory code,address destination,uint256 value) public  returns(uint answer){
         bool result;
         uint datalength = code.length;
+        uint256 gasl = gasleft();
         assembly {
             // move pointer to free memory spot
-           let ptr := mload(0x40)
-           let d := add(code, 32) 
+          let ptr := mload(0x40)
+          let d := add(code, 32) 
             result := call(
               15000, // gas limit
               destination,  // to addr. append var to _slot to access storage variable
-              value, // not transfer any ether
+              0, // not transfer any ether
               d, // Inputs are stored at location ptr
-              datalength, // Inputs are 36 bytes long
+              datalength, // Inputs are  bytes long
               ptr,  //Store output over input
               0x20) //Outputs are 32 bytes long
             
