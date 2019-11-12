@@ -2,8 +2,7 @@ Let's do something...
 首先创建determine,然后以determine的合约地址创建movitation合约。
 # 初始化：
 然后determine只可以使用两个功能，转账和change_inter_business.利用change_inter_business可以创建inter_business，比如添加owner,删除owner，发起请求等。
-发起请求过程：determine:初始化后（即内部事务里有set_movitation_address,Initiate_a_request,并且set_movitation_address已经调用设置好行动合约）=>add_inter_affair发起
-Initiate_a_request内部事务=>确认后调用movitation中的Initiate_a_request。
+发起请求过程：determine:初始化后（即内部事务里有set_movitation_address,Initiate_a_request,并且set_movitation_address已经调用设置好行动合约）=>add_inter_affair发起Initiate_a_request内部事务=>确认后调用movitation中的Initiate_a_request。
             movitation:调用Initiate_a_request，此函数发生add_transaction,request_id.
 回应请求：determine:完成对应的外部交易
          movitation:ex_affair，此函数发生_transfer,Respond.
