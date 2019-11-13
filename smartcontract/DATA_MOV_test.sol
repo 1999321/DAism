@@ -7,7 +7,7 @@ contract movitation is IDATA_MOV{
 	
 	//交易或者是缴费请求
     struct  Transaction{
-        uint8 status;  
+        uint8 status;  //0表示not_done,1表示撤回（未实现），2表示已完成。
         uint8 required;
         address destination;
         address _call_address;
@@ -94,7 +94,7 @@ contract movitation is IDATA_MOV{
 	//_bili:bili
 	//_Withdrawal_time:提款时间间隔
 	//_Investors:投资人地址
-    constructor(address add,uint8 _bili,uint256 _Withdrawal_time,address[] memory _Investors,address _autoaddress)public payable{
+    constructor(address add,uint8 _bili,uint256 _Withdrawal_time,address[] memory _Investors,address _autoaddress)public {
         require(isContract(add));
         determin_address = add;
         bili = _bili;
@@ -144,20 +144,20 @@ contract movitation is IDATA_MOV{
 	//add:决策管理人地址
 	//isconfirmed:表示是否签名
 	//id:transactions id;
-    function confirmed_Synchronize(address add,bool isconfirmed,uint256 id)public onlydetermin_address(msg.sender)
+    function confirmed_Synchronize(address add,bool isconfirmed,uint256 id)external onlydetermin_address(msg.sender)
     returns(bool)
     {
         transactions[id].confirmed[add] = isconfirmed;
         return true;
     }
 	//白名单的修改
-	function whitenames_add(address add)public onlydetermin_address(msg.sender)returns(bool){
+	function whitenames_add(address add)external onlydetermin_address(msg.sender)returns(bool){
         require(!iswhitename[add]);
 		require(isContract(add));
         iswhitename[add] = true;
         whitenames.push(add);
     }
-    function whitenames_delete(address add)public onlydetermin_address(msg.sender)returns(bool){
+    function whitenames_delete(address add)external onlydetermin_address(msg.sender)returns(bool){
         iswhitename[add] = false;
         for (uint i=0; i<whitenames.length - 1; i++)
             if (whitenames[i] == add) {
@@ -169,13 +169,13 @@ contract movitation is IDATA_MOV{
 	//数据权限的设定
 	//id:指定数据，0为transactions,1为requests
 	//level:数据等级，值越大，等级越高
-	function set_datalevel(uint id,uint8 level)public onlydetermin_address(msg.sender)returns(bool){
+	function set_datalevel(uint id,uint8 level)external onlydetermin_address(msg.sender)returns(bool){
         require(level < default_smallest && level>=0 );
         datalevel[id] = level;
 		return true;
     }
 	//数据权限的授予
-    function _open_to(address add,uint8 level)public onlydetermin_address(msg.sender) returns(bool){
+    function _open_to(address add,uint8 level)external onlydetermin_address(msg.sender) returns(bool){
         open_to[add] = level;
 		return true;
     }
@@ -188,7 +188,7 @@ contract movitation is IDATA_MOV{
 	//value:费用
 	//_Description:请求描述
 	//degree:要求签名比例
-	function Initiate_a_request(address organ_address,uint256 value,string memory _Description,uint8 degree)public onlydetermin_address(msg.sender) returns(bool){
+	function Initiate_a_request(address organ_address,uint256 value,string memory _Description,uint8 degree)external onlydetermin_address(msg.sender) returns(bool){
        require(isContract(organ_address));
        require(value > 0);
        //uint256 _id =0;
@@ -265,7 +265,7 @@ contract movitation is IDATA_MOV{
 	
 	//处理交易
 	//transactionid:交易id
-	function ex_affair(uint transactionid)public onlydetermin_address(msg.sender) returns(bool){
+	function ex_affair(uint transactionid)external onlydetermin_address(msg.sender) returns(bool){
 	    if(the_last_time+3*365*1 days >= now)
             die();
         require(this._transfer(transactions[transactionid].value,transactions[transactionid].destination));
@@ -324,7 +324,7 @@ contract movitation is IDATA_MOV{
         return (codehash != 0x0 && codehash != accountHash);
     }
 	//转移决策合约地址：可以实现升级，此里应该还需要实现之前决策合约transactions的状态同步或者开放状态的获取,如get_twostatus
-    function divert(address add)public onlydetermin_address(msg.sender)returns(bool){
+    function divert(address add)external onlydetermin_address(msg.sender)returns(bool){
         require(isContract(add));
         determin_address = add;
         return true;
@@ -335,7 +335,7 @@ contract movitation is IDATA_MOV{
 	}
 	//改变autoaddress
 	//new_auto:new auto_addreess;
-	function change_auto(address new_auto)public onlydetermin_address(msg.sender) returns(bool){
+	function change_auto(address new_auto)external onlydetermin_address(msg.sender) returns(bool){
 	   autoaddress = new_auto;
 	   return true;
 	}

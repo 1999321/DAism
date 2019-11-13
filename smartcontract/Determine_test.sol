@@ -21,11 +21,17 @@ contract Determine is IDETERMINE{
     mapping(uint=>uint8) public status;
 	//交易数量
     uint public TransactionCount;
+	//状态
+	enum affair_status{
+	     not_done
+		 revoke
+		 done
+	}
     /**********内部事务***********/
     struct affair{
         bytes code;
         address caller;
-        int status;
+        affair_status status;
         uint256 value;
         address destination;
         uint8 which;
@@ -62,6 +68,8 @@ contract Determine is IDETERMINE{
     address public movitation_address;
 	//基本的签名比例要求，用于未定义签名规则的内部事务，与及用于change_inter_business制定内部规则。
     uint8  public required;
+	//零地址
+	address constant ZERO_ADDRESS = address(0)
    // bytes4 private change_require_code;
     /**************************modifier***************************/
 	//判断调用者是否为本身
@@ -75,9 +83,9 @@ contract Determine is IDETERMINE{
         _;
     }
 	//判断合约是否已经执行且id是否正确（越界）
-    modifier transactionisOK(uint id,int which){
+    modifier transactionisOK(uint id,uint which){
         if(which == 0)
-        require(affairs[id].status == 0 && id<affaircount,"1");
+        require(affairs[id].status == affair_status.not_done && id<affaircount,"1");
         else
         require(status[id] == 0 && id<TransactionCount,"2");
         _;
@@ -94,9 +102,8 @@ contract Determine is IDETERMINE{
         public
     {
         require(int(_owners.length)<=max_owners_count);
-        address zero;
         for (uint i=0; i<_owners.length; i++) {
-            require(!isOwner[_owners[i]] && _owners[i] != zero);
+            require(!isOwner[_owners[i]] && _owners[i] != ZERO_ADDRESS);
             isOwner[_owners[i]] = true;
         }
         Owners = _owners;
@@ -115,10 +122,8 @@ contract Determine is IDETERMINE{
 	//添加内部函数事务
 	//_code:调用某函数的字节码
 	//which:事务编号
-    function add_intertal_affair(bytes memory _code,uint8 which)public onlyowners(msg.sender)returns(bool success)
+    function add_intertal_affair(bytes memory _code,uint8 which)external onlyowners(msg.sender)returns(bool success)
     {
-        address zero;
-        require(which >= 0 );
         uint8 required_affair;
         require(inter_businesses[which].forth_code.length != 0);
         require(isthe_code(_code,which));
@@ -128,9 +133,9 @@ contract Determine is IDETERMINE{
         affairs[affaircount] = affair({
             code:_code,
             caller:msg.sender,
-            status:0,
+            status:affair_status.not_done,
             value:0,
-            destination:zero,
+            destination:ZERO_ADDRESS,
             which:which,
             required:required_affair
         });
@@ -140,15 +145,13 @@ contract Determine is IDETERMINE{
 	//添加内部支付事务
 	//value:金额
 	//destination:目标地址
-    function add_transfer_affair(uint256 value,address destination)public onlyowners(msg.sender)returns(bool success)
+    function add_transfer_affair(uint256 value,address destination)external onlyowners(msg.sender)returns(bool success)
     {
-        require(value+affaircount>=affaircount);
-        address zero;
-        require(destination != zero);
+        require(destination != ZERO_ADDRESS);
         uint8 required_affair;
-             required_affair = the_max(find_require(value),find_require1(find_sum_value(value)));
+        required_affair = the_max(find_require(value),find_require1(find_sum_value(value)));
         if(required_affair == 0)
-        required_affair = required;
+            required_affair = required;
         affairs[affaircount].value = value;
         affairs[affaircount].destination = destination;
         affaircount += 1;
@@ -158,36 +161,42 @@ contract Determine is IDETERMINE{
     function isthe_code(bytes memory _code,uint8 which)public view returns(bool ){
         for(uint i=0;i<4;i++)
         if(_code[i] != inter_businesses[which].forth_code[i])
-        return false;
+            return false;
         return true;
     }
 	//比较大小
     function the_max(uint8 value1,uint8 value2) public pure returns(uint8 max_value){
         if(value1>value2)
-        max_value = value1;
+           max_value = value1;
         max_value = value2;
     }
 	//sigle_affair
     function find_require(uint256 _value)public view returns(uint8 required_){
         
         for(uint8 i=0;i<single_affair_count;i++){
-            if(_value < single_affair[i].value_high && _value > single_affair[i].value_low)
-            required_ = single_affair[i].required;
+            if(_value < single_affair[i].value_high && _value > single_affair[i].value_low){
+			    required_ = single_affair[i].required;
+			    break;
+			}
+                
         }
         if(required_ == 0)
-        required_ = required;
+           required_ = required;
     }
 	//mul_affair
     function find_require1(uint256 value)public view returns(uint8 required_){
         for(uint8 i=0;i<sum_affair_count;i++){
-            if(value < sum_affair[i].value_high && value > sum_affair[i].value_low)
-            required_ = sum_affair[i].required;
+            if(value < sum_affair[i].value_high && value > sum_affair[i].value_low){
+			    required_ = sum_affair[i].required;
+				break;
+			}
+                
         }
         if(required_ == 0)
-        required_ = required;
+            required_ = required;
     }
 	//计算日消费
-    function find_sum_value(uint256 value)public  returns(uint256 sum_value){
+    function find_sum_value(uint256 value)internal  returns(uint256 sum_value){
         if(now > today + 1*1 days)
         {
             today = now;
@@ -203,7 +212,7 @@ contract Determine is IDETERMINE{
     //签名
 	//transactionId:事务/交易 id
 	//which:类型，0表示内部事务，1表示外部交易
-    function confirmTransaction(uint256 transactionId,int which)public onlyowners(msg.sender)
+    function confirmTransaction(uint256 transactionId,uint which)external onlyowners(msg.sender)
     transactionisOK(transactionId,which)
     {
         if(which == 0){
@@ -212,7 +221,7 @@ contract Determine is IDETERMINE{
              ex_transaction(transactionId,0);
         }
         else{
-            require(!confirmed[transactionId][msg.sender]&&transactionId<TransactionCount,"3");
+            require(!confirmed[transactionId][msg.sender],"3");
             confirmed[transactionId][msg.sender] = true;
             require(IDATA_MOV(movitation_address).confirmed_Synchronize(msg.sender,true,transactionId),"4");
             ex_transaction(transactionId,1);
@@ -221,7 +230,7 @@ contract Determine is IDETERMINE{
 	//取消签名
 	//transactionId:事务/交易 id
 	//which:类型，0表示内部事务，1表示外部交易
-    function revokeConfirmation(uint256 transactionId,int which)public onlyowners(msg.sender)
+    function revokeConfirmation(uint256 transactionId,uint which)external onlyowners(msg.sender)
         transactionisOK(transactionId,which)
     {
         if(which == 0){
@@ -240,7 +249,7 @@ contract Determine is IDETERMINE{
 	/**********************************************/
 	function revoke(uint transactionId) public {
         require(msg.sender == affairs[transactionId].caller);
-        affairs[transactionId].status = 1;
+        affairs[transactionId].status = affair_status.revoke;
     }
 	/*****************************************/
 	/*执行事务/交易
@@ -248,16 +257,16 @@ contract Determine is IDETERMINE{
 	//判断是否签名够数
 	//transactionId:事务/交易 id
 	//which:类型，0表示内部事务，1表示外部交易
-    function isConfirmed(uint256 transactionId,int which)public view returns (bool)
+    function isConfirmed(uint256 transactionId,uint which)public view returns (bool)
     {
         uint8 count = 0;
         uint8 length = uint8(Owners.length);
         if(which !=0){
             require(status[transactionId]==0);
             for (uint i=0; i<Owners.length; i++) {
-            if (confirmed[transactionId][msg.sender])
+            if (confirmed[transactionId][Owners[i]])
                 count += 1;
-            if (count >= length*degree[transactionId]/100 || count == int(Owners.length))
+            if (count >= length*degree[transactionId]/100 || count == length)
                  return true;
         }
         return false;
@@ -292,15 +301,15 @@ contract Determine is IDETERMINE{
            //ex_function(affairs[transactionId].code,address(this),0);
            else
            require(IDATA_MOV(movitation_address)._transfer(affairs[transactionId].value,affairs[transactionId].destination));
-           affairs[transactionId].status = 2;
+           affairs[transactionId].status = affair_status.done;
        }
        }
        
        else{
-       success = isConfirmed(transactionId,1);
-       if(success){
-           require(IDATA_MOV(movitation_address).ex_affair(transactionId),"6");
-           status[transactionId] =2;
+           success = isConfirmed(transactionId,1);
+           if(success){
+               require(IDATA_MOV(movitation_address).ex_affair(transactionId),"6");
+               status[transactionId] =2;
        }
        }
     }
@@ -357,7 +366,7 @@ contract Determine is IDETERMINE{
             _required = transaction_affair[i].required;
         }
         if(_required == 0)
-        _required = required;
+            _required = required;
 	}
 	/**************************************************/
 	/*具体内部事务
@@ -377,7 +386,7 @@ contract Determine is IDETERMINE{
     function addOwner(address owner) public
     onlyWallet(msg.sender)
     {
-        require(isOwner[owner]);
+        require(!isOwner[owner]);
         require(int(Owners.length+1) <= max_owners_count);
         isOwner[owner] = true;
         Owners.push(owner);
