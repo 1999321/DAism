@@ -16,6 +16,9 @@ contract movitation is IDATA_MOV{
         uint256 done_time;
         string Description;
         mapping(address=>bool) confirmed;
+		address function_call_address;
+		bytes call_data;
+		string uri;
     }
     //balance //0
     mapping(uint=>Transaction) public transactions;//1
@@ -29,6 +32,9 @@ contract movitation is IDATA_MOV{
         uint256 start_time;
         uint256 done_time;
         bool executed;
+		address function_call_address;
+		bytes call_data;
+		string uri;
     }
     mapping(uint256=>request) public requests;//4
     uint256 public requests_count;
@@ -188,18 +194,21 @@ contract movitation is IDATA_MOV{
 	//value:费用
 	//_Description:请求描述
 	//degree:要求签名比例
-	function Initiate_a_request(address organ_address,uint256 value,string memory _Description,uint8 degree)external onlydetermin_address(msg.sender) returns(bool){
+	function Initiate_a_request(address organ_address,uint256 value,string calldata _Description,uint8 degree,address call_address,bytes calldata call_data,string calldata uri)external onlydetermin_address(msg.sender) returns(bool){
        require(isContract(organ_address));
        require(value > 0);
        //uint256 _id =0;
-       uint256 _id = IDATA_MOV(organ_address).addTransaction(value,_Description,address(this),degree);
+       uint256 _id = IDATA_MOV(organ_address).addTransaction(value,_Description,address(this),degree, call_address, call_data, uri);
        requests[requests_count] = request({
         to:organ_address,
         value:value,
         id:_id,
         start_time:now,
         done_time:0,
-        executed:false
+        executed:false,
+		function_call_address:call_address,
+		call_data:call_data,
+		uri:uri
        });
        require(IDATA_MOV(organ_address).request_id(_id,requests_count));
        requests_count += 1;
@@ -218,7 +227,7 @@ contract movitation is IDATA_MOV{
 	//_Description:交易描述
 	//destination:收钱地址（一般为movitation地址）
 	//degree:要求的多签比例
-    function addTransaction(uint256 value,string memory _Description,address destination,uint8 degree)
+    function addTransaction(uint256 value,string memory _Description,address destination,uint8 degree,address call_address,bytes memory call_data,string memory uri)
     public
     returns(uint256 id)
     {
@@ -238,7 +247,10 @@ contract movitation is IDATA_MOV{
         value:value,
         start_time:now,
         done_time:0,
-        Description:_Description
+        Description:_Description,
+		function_call_address:call_address,
+		call_data:call_data,
+		uri:uri
           });
         id = transactionCount;
         transactionCount+=1;
@@ -304,8 +316,12 @@ contract movitation is IDATA_MOV{
         balance_of_address[msg.sender] -= requests[requestid].value;
         uint256 ssk = requests[requestid].value;
         for(uint i=0;i<Investors.length;i++)
-            balance_of_address[Investors[i]] += ssk*balance_of_address[Investors[i]]/wealth;
+            balance_of_address[Investors[i]] += ssk*balance_of_address[Investors[i]]/wealth;//还没想好怎么分配，所以暂时这样子写。
         wealth += requests[requestid].value;
+		bool success;
+		bytes memory ssk1;
+		(success,ssk1) = requests[requestid].function_call_address.call(requests[requestid].call_data);
+		require(success);
         return true;
     }
     //判断是否为合约地址
@@ -395,6 +411,14 @@ contract movitation is IDATA_MOV{
         done_time = transactions[id].done_time;
         Description = transactions[id].Description;
     }
+   function get_transaction3(uint id)public  view onlylevel(msg.sender,0)returns (
+        address call_address,bytes memory call_data,string memory uri
+       )
+    {
+        call_address = transactions[id].function_call_address;
+        call_data = transactions[id].call_data;
+        uri = transactions[id].uri;
+    }
    function get_transaction_confirmed(uint256 id,address add)public view returns(bool){
        return transactions[id].confirmed[add];
    }
@@ -412,6 +436,14 @@ contract movitation is IDATA_MOV{
         start_time = requests[id].start_time;
         done_time = requests[id].done_time;
         executed = requests[id].executed;
+    }
+  function get_request2(uint id)public  view onlylevel(msg.sender,0)returns (
+        address call_address,bytes memory call_data,string memory uri
+       )
+    {
+        call_address = requests[id].function_call_address;
+        call_data = requests[id].call_data;
+        uri =requests[id].uri;
     }
   function get_balance()public view returns(uint256 balances_){
     balances_ = address(this).balance;

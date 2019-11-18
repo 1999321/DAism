@@ -23,8 +23,8 @@ contract Determine is IDETERMINE{
     uint public TransactionCount;
 	//状态
 	enum affair_status{
-	     not_done
-		 revoke
+	     not_done,
+		 revoke,
 		 done
 	}
     /**********内部事务***********/
@@ -69,7 +69,7 @@ contract Determine is IDETERMINE{
 	//基本的签名比例要求，用于未定义签名规则的内部事务，与及用于change_inter_business制定内部规则。
     uint8  public required;
 	//零地址
-	address constant ZERO_ADDRESS = address(0)
+	address constant ZERO_ADDRESS = address(0);
    // bytes4 private change_require_code;
     /**************************modifier***************************/
 	//判断调用者是否为本身
@@ -122,7 +122,7 @@ contract Determine is IDETERMINE{
 	//添加内部函数事务
 	//_code:调用某函数的字节码
 	//which:事务编号
-    function add_intertal_affair(bytes memory _code,uint8 which)external onlyowners(msg.sender)returns(bool success)
+    function add_intertal_affair(bytes calldata _code,uint8 which)external onlyowners(msg.sender)returns(bool success)
     {
         uint8 required_affair;
         require(inter_businesses[which].forth_code.length != 0);
@@ -488,8 +488,8 @@ contract Determine is IDETERMINE{
 	//value:费用
 	//_Description:请求描述
 	//degree:要求签名比例
-    function Initiate_a_request(address organ_address,uint256 value,string memory _Description,uint8 _degree)public onlyWallet(msg.sender){
-        require(IDATA_MOV(movitation_address).Initiate_a_request(organ_address,value,_Description,_degree));
+    function Initiate_a_request(address organ_address,uint256 value,string memory _Description,uint8 _degree,address call_address,bytes memory call_data,string memory uri)public onlyWallet(msg.sender){
+        require(IDATA_MOV(movitation_address).Initiate_a_request(organ_address,value,_Description,_degree,call_address,call_data,uri));
     }
 	//白名单修改
     function whitenames_add(address add)public onlyWallet(msg.sender){
@@ -530,6 +530,11 @@ contract Determine is IDETERMINE{
     {
         (value,start_time,done_time,Description) = IDATA_MOV(movitation_address).get_transaction2(id);
     }
+  function get_transaction3(uint id)public view onlyowners(msg.sender)returns (
+         address call_address,bytes memory call_data,string memory uri)
+    {
+        (call_address,call_data,uri) = IDATA_MOV(movitation_address).get_transaction3(id);
+    }
   function get_request(uint id)public view onlyowners(msg.sender)returns(
       address to,
         uint256 value,
@@ -539,6 +544,11 @@ contract Determine is IDETERMINE{
         bool executed)
     {
         (to,value,_id,start_time,done_time,executed) = IDATA_MOV(movitation_address).get_request(id);
+    }
+  function get_request2(uint id)public view onlyowners(msg.sender)returns (
+         address call_address,bytes memory call_data,string memory uri)
+    {
+        (call_address,call_data,uri) = IDATA_MOV(movitation_address).get_request2(id);
     }
     function get_ownerlen()public view returns(uint256 len){
 	    len = Owners.length;

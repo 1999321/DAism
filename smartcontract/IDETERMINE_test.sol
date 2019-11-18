@@ -19,7 +19,7 @@ interface IDETERMINE {
     function set_movitation_address(address add)external;
     function divert(address new_contract_address)external;
     function opendata_to(address to ,uint8 which)external;
-    function Initiate_a_request(address organ_address,uint256 value,string calldata _Description,uint8 degree)external;
+    function Initiate_a_request(address organ_address,uint256 value,string calldata _Description,uint8 degree,address call_address,bytes calldata call_data,string calldata uri)external;
     function whitenames_add(address add)external;
     function whitenames_delete(address add)external ;
 	function get_ownerlen()external view returns(uint256 len);
